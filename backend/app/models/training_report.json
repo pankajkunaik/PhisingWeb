@@ -1,0 +1,80 @@
+{
+    "model_type": "xgboost",
+    "feature_keys": [
+        "url_length",
+        "domain_length",
+        "qty_dots",
+        "qty_hyphens",
+        "qty_underline",
+        "qty_slash",
+        "qty_question",
+        "qty_equal",
+        "qty_at",
+        "qty_and",
+        "qty_exclamation",
+        "qty_tilde",
+        "qty_comma",
+        "qty_plus",
+        "qty_asterisk",
+        "qty_hashtag",
+        "qty_dollar",
+        "qty_percent",
+        "qty_subdomains",
+        "has_ip",
+        "is_shortened",
+        "has_login_keyword",
+        "is_https",
+        "external_links_ratio",
+        "iframe_present",
+        "disables_right_click",
+        "has_unsafe_form",
+        "favicon_external"
+    ],
+    "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "roc_auc": 1.0,
+        "confusion_matrix": [
+            [
+                1215,
+                0
+            ],
+            [
+                0,
+                785
+            ]
+        ]
+    },
+    "feature_importance": {
+        "url_length": 0.0033216115552932024,
+        "domain_length": 0.002675322350114584,
+        "qty_dots": 0.027238337323069572,
+        "qty_hyphens": 0.0,
+        "qty_underline": 0.0,
+        "qty_slash": 0.0157442819327116,
+        "qty_question": 0.0,
+        "qty_equal": 0.0,
+        "qty_at": 0.0,
+        "qty_and": 0.0,
+        "qty_exclamation": 0.0,
+        "qty_tilde": 0.0,
+        "qty_comma": 0.0,
+        "qty_plus": 0.0,
+        "qty_asterisk": 0.0,
+        "qty_hashtag": 0.0,
+        "qty_dollar": 0.0,
+        "qty_percent": 0.0,
+        "qty_subdomains": 0.00137257797177881,
+        "has_ip": 0.0,
+        "is_shortened": 0.0,
+        "has_login_keyword": 0.0,
+        "is_https": 0.001817277749069035,
+        "external_links_ratio": 0.9464942812919617,
+        "iframe_present": 0.0,
+        "disables_right_click": 0.0,
+        "has_unsafe_form": 0.001336250570602715,
+        "favicon_external": 0.0
+    }
+}
