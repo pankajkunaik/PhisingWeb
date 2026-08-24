@@ -91,7 +91,20 @@ app.include_router(ai_chat_router)
 app.include_router(user_router)
 
 
-# ── Health Check ──────────────────────────────────────────────────────────────
+# ── Root & Health Check ────────────────────────────────────────────────────────
+@app.get("/", tags=["Root"])
+def root():
+    return {
+        "name": "PhishGuard AI Backend API",
+        "status": "online",
+        "version": "2.0.0",
+        "docs": "/api/docs",
+        "health": "/api/health",
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "environment": "production" if IS_PRODUCTION else "development",
+    }
+
+
 @app.get("/api/health", tags=["Health"])
 def health_check():
     return {
