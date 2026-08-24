@@ -27,14 +27,21 @@ const nextConfig: NextConfig = {
 
   // Transparent reverse proxy on Vercel / serverless to eliminate CORS
   async rewrites() {
-    const backendUrl =
+    let rawUrl =
       process.env.BACKEND_API_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
       "http://127.0.0.1:8000";
+
+    rawUrl = rawUrl.trim();
+    if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://") && !rawUrl.startsWith("/")) {
+      rawUrl = `https://${rawUrl}`;
+    }
+    const backendUrl = rawUrl.replace(/\/+$/, "");
+
     return [
       {
         source: "/api/:path*",
-        destination: `${backendUrl.replace(/\/+$/, "")}/api/:path*`,
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
