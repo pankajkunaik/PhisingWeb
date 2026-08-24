@@ -1,0 +1,23 @@
+services:
+  # ── PhishGuard AI Backend Web Service ───────────────────────────────────────
+  - type: web
+    name: phishguard-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set to your Neon PostgreSQL connection string in Render Dashboard
+      - key: SECRET_KEY
+        generateValue: true # Render automatically generates a secure 256-bit random key
+      - key: ALLOWED_ORIGINS
+        value: https://*.vercel.app,http://localhost:3000
+      - key: GROK_API_KEY
+        sync: false # Optional xAI Grok API Key
+      - key: GOOGLE_SAFE_BROWSING_API_KEY
+        sync: false # Optional Google Safe Browsing API Key

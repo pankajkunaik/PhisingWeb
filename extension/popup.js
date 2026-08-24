@@ -1,4 +1,20 @@
-const BACKEND_URL = "http://localhost:8000";
+// Backend URL — configurable via chrome.storage or defaults to localhost
+const DEFAULT_BACKEND_URL = "http://localhost:8000";
+let BACKEND_URL = DEFAULT_BACKEND_URL;
+
+// Load stored backend URL and auth token from chrome.storage
+async function loadSettings() {
+  if (typeof chrome !== "undefined" && chrome.storage) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["backend_url", "auth_token"], (result) => {
+        if (result.backend_url) BACKEND_URL = result.backend_url;
+        resolve(result.auth_token || null);
+      });
+    });
+  }
+  return null;
+}
+
 
 document.addEventListener("DOMContentLoaded", async () => {
   const currentUrlEl = document.getElementById("current-url");

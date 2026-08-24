@@ -57,7 +57,7 @@ def test_threats_feed():
     r = requests.get(f"{BASE}/api/threats/feed")
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 5
+    assert isinstance(data, list)
     print(f"✓ Threats feed passed → {len(data)} threat items")
 
 def test_threats_map():

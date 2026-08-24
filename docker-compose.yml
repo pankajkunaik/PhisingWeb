@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: phishguard_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://phishguard:phishguard_pass@postgres:5432/phishguard
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change_me_in_production}
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
+      - APP_ENV=${APP_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - phishguard_net
+    volumes:
+      - ml_models:/app/ml/models:ro
+
+  # ── Frontend (Next.js) ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: phishguard_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    depends_on:
+      - backend
+    networks:
+      - phishguard_net
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: phishguard_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: phishguard
+      POSTGRES_USER: phishguard
+      POSTGRES_PASSWORD: phishguard_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phishguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - phishguard_net
+
+  # ── Redis (caching) ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: phishguard_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - phishguard_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  ml_models:
+
+networks:
+  phishguard_net:
+    driver: bridge

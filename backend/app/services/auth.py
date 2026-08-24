@@ -12,15 +12,12 @@ import sys
 # Ensure the backend/app directory is in python path to resolve modules absolutely
 app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if app_dir not in sys.path:
-    sys.path.append(app_dir)
+    sys.path.insert(0, app_dir)
 
 from database import get_db, User
+from core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Security configs
-SECRET_KEY = os.getenv("SECRET_KEY", "phishguard_super_secret_key_1337_donotuseinproduction_changeit")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours for developer convenience
-
+# Settings are imported from core.config (env-driven)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 def get_password_hash(password: str) -> str:
@@ -73,6 +70,19 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
     return user
+
+def get_optional_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Optional[User]:
+    """Dependency to retrieve current user if valid, or None if anonymous/expired token."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        return db.query(User).filter(User.email == email).first()
+    except Exception:
+        return None
 
 def require_user(user: Optional[User] = Depends(get_current_user)) -> User:
     """Dependency to enforce that a user is fully authenticated."""

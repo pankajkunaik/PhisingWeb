@@ -129,7 +129,15 @@ FastAPI endpoints run under `http://localhost:8000`. Swagger specs are available
 
 ### GET `/api/threats/feed`
 *   **Access**: Public
-*   **Response**: List of 5 simulated live active threat telemetry feeds.
+*   **Response**: Real-time list of detected threat domains.
+
+### GET `/api/threats/map`
+*   **Access**: Public
+*   **Response**: Array of global threat attack coordinates with latitude, longitude, and intensity weight.
+
+### GET `/api/stats`
+*   **Access**: Public
+*   **Response**: Live platform statistics (total scans, threats detected, accuracy, users).
 
 ### POST `/api/ai/chat`
 *   **Access**: Public
@@ -149,3 +157,68 @@ FastAPI endpoints run under `http://localhost:8000`. Swagger specs are available
       "content": "This site is flagged as PHISHING because it has an age of 5 days, lacks SSL encryption, and has been reported in PhishTank database."
     }
     ```
+
+### POST `/api/ai/inspect-content`
+*   **Access**: Public / Authenticated
+*   **Body**:
+    ```json
+    {
+      "content": "URGENT: Your account is suspended. Click here to verify password.",
+      "content_type": "email_or_text"
+    }
+    ```
+*   **Response**:
+    ```json
+    {
+      "analysis": "Identified multiple social engineering markers.",
+      "risk_level": "Phishing / Malicious",
+      "indicators": ["Urgency / Coercion Keyword Detected: 'urgent'", "Credential / Sensitive Data Prompt: 'password'"],
+      "recommendation": "Do not click embedded links or enter credentials."
+    }
+    ```
+
+---
+
+## 5. Network & Domain Diagnostics
+
+### GET `/api/whois?domain={domain}`
+*   **Access**: Public
+*   **Response**: WHOIS registrar, creation date, expiration date, and domain age in days.
+
+### GET `/api/ssl?domain={domain}`
+*   **Access**: Public
+*   **Response**: SSL certificate validity status, issuer, expiration, and cipher suite.
+
+### GET `/api/dns?domain={domain}`
+*   **Access**: Public
+*   **Response**: Resolved A records (IPs), MX mail servers, and NS nameservers.
+
+---
+
+## 6. User Security Hub
+
+### GET `/api/user/stats`
+*   **Access**: Authenticated (Bearer Token in headers)
+*   **Response**: Aggregated user security score card (total scans, breakdown, threat rate, security grade A+ to F).
+
+### GET `/api/user/watchlist`
+*   **Access**: Authenticated
+*   **Response**: Array of monitored domain assets with SSL validity, days until expiration, and risk score.
+
+### POST `/api/user/watchlist`
+*   **Access**: Authenticated
+*   **Body**:
+    ```json
+    {
+      "domain": "company-portal.com",
+      "label": "Corporate Portal"
+    }
+    ```
+
+### DELETE `/api/user/watchlist/{id}`
+*   **Access**: Authenticated
+*   **Response**: Removes the specified domain from monitoring.
+
+### DELETE `/api/user/history/{scan_id}`
+*   **Access**: Authenticated
+*   **Response**: Deletes personal scan record from user's history.
