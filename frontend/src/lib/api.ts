@@ -5,21 +5,22 @@
  */
 
 function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL !== undefined && process.env.NEXT_PUBLIC_API_URL !== "") {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
-  }
   if (typeof window !== "undefined") {
-    // In production on Vercel (when NEXT_PUBLIC_API_URL is empty or not provided),
-    // use same-origin relative URLs ("/api/...") so Next.js rewrites proxy to backend without CORS.
+    // In production on Vercel or any live domain, ALWAYS use relative URLs ("/api/...")
+    // Next.js rewrites in next.config.ts automatically proxy all /api/* calls to your Railway backend with zero CORS issues.
     if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
       return "";
     }
-    // Explicitly map "localhost" → "127.0.0.1" so we always use IPv4 in local development.
+    // In local development, call the local backend server on 127.0.0.1:8000
     const hostname = window.location.hostname || "127.0.0.1";
     const host = hostname === "localhost" ? "127.0.0.1" : hostname;
     return `http://${host}:8000`;
   }
-  return "http://127.0.0.1:8000";
+  // Server-side default
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("127.0.0.1") && !process.env.NEXT_PUBLIC_API_URL.includes("localhost")) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+  }
+  return "";
 }
 
 // ── Token helpers ──────────────────────────────────────────────────────────────

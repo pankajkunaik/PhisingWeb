@@ -14,10 +14,9 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Expose public env vars explicitly
+  // Expose public env vars explicitly (empty default in production to enable relative proxy routing)
   env: {
-    // Use 127.0.0.1 explicitly so Windows doesn't resolve "localhost" to ::1 (IPv6)
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000",
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "",
   },
 
   // Pin Turbopack's workspace root to THIS directory (frontend/).
@@ -30,7 +29,7 @@ const nextConfig: NextConfig = {
     let rawUrl =
       process.env.BACKEND_API_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
-      "http://127.0.0.1:8000";
+      "https://phisingweb-production.up.railway.app";
 
     rawUrl = rawUrl.trim();
     if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://") && !rawUrl.startsWith("/")) {
