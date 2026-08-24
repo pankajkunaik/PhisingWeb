@@ -38,8 +38,10 @@ def _clean_markdown_response(text: str) -> str:
     """Cleans up raw LLM markdown output to ensure crisp formatting."""
     if not text:
         return ""
-    # Strip unnecessary code block fences around full text
     cleaned = text.strip()
+    # Strip <think>...</think> reasoning blocks produced by deepseek/qwen/reasoning models
+    cleaned = re.sub(r'<think>.*?</think>', '', cleaned, flags=re.DOTALL).strip()
+    # Strip unnecessary code block fences around full text
     if cleaned.startswith("```markdown"):
         cleaned = cleaned[11:]
     elif cleaned.startswith("```"):
@@ -50,13 +52,27 @@ def _clean_markdown_response(text: str) -> str:
 
 
 def _call_grok_llm(messages: List[dict], system_prompt: str) -> Optional[str]:
-    """Invokes xAI Grok API (api.x.ai/v1) with chat completions."""
+    """Invokes Groq (api.groq.com) or xAI Grok (api.x.ai) chat completions."""
     if not GROK_API_KEY:
         return None
 
-    url = "https://api.x.ai/v1/chat/completions"
+    raw_key = GROK_API_KEY.strip()
+    is_groq = raw_key.startswith("gsk_")
+
+    if is_groq:
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        models_to_try = [
+            GROK_MODEL if GROK_MODEL and GROK_MODEL != "grok-2-latest" else "qwen/qwen3.6-27b",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "groq/compound",
+        ]
+    else:
+        url = "https://api.x.ai/v1/chat/completions"
+        models_to_try = [GROK_MODEL if GROK_MODEL else "grok-2-latest", "grok-beta"]
+
     headers = {
-        "Authorization": f"Bearer {GROK_API_KEY.strip()}",
+        "Authorization": f"Bearer {raw_key}",
         "Content-Type": "application/json"
     }
 
@@ -64,14 +80,11 @@ def _call_grok_llm(messages: List[dict], system_prompt: str) -> Optional[str]:
     for m in messages:
         formatted_messages.append({"role": m["role"], "content": m["content"]})
 
-    # Try configured model, fallback to grok-2-latest
-    models_to_try = [GROK_MODEL if GROK_MODEL else "grok-2-latest", "grok-beta"]
-    
     for model_name in dict.fromkeys(models_to_try):
         payload = {
             "model": model_name,
             "messages": formatted_messages,
-            "temperature": 0.2, # Lower temperature for maximum accuracy and factual consistency
+            "temperature": 0.2,
             "max_tokens": 1000,
         }
 
@@ -82,9 +95,9 @@ def _call_grok_llm(messages: List[dict], system_prompt: str) -> Optional[str]:
                 raw_content = data["choices"][0]["message"]["content"]
                 return _clean_markdown_response(raw_content)
             else:
-                logger.warning("Grok API non-200 (%s) on model %s: %s", res.status_code, model_name, res.text)
+                logger.warning("LLM API non-200 (%s) on model %s: %s", res.status_code, model_name, res.text)
         except Exception as e:
-            logger.warning("Grok API call failed on model %s: %s", model_name, e)
+            logger.warning("LLM API call failed on model %s: %s", model_name, e)
 
     return None
 
@@ -256,6 +269,42 @@ def chat_assistant(
     return ChatResponse(role="assistant", content=reply)
 
 
+def _extract_first_json(text: str) -> Optional[dict]:
+    """Extracts the first valid JSON object from LLM response."""
+    if not text:
+        return None
+    cleaned = _clean_markdown_response(text)
+    # Direct parse attempt
+    try:
+        res = json.loads(cleaned)
+        if isinstance(res, dict):
+            return res
+    except Exception:
+        pass
+
+    # Find first {
+    first_idx = cleaned.find('{')
+    if first_idx != -1:
+        decoder = json.JSONDecoder()
+        try:
+            obj, _ = decoder.raw_decode(cleaned[first_idx:])
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+
+        # Try between first { and last }
+        last_idx = cleaned.rfind('}')
+        if last_idx > first_idx:
+            try:
+                obj = json.loads(cleaned[first_idx:last_idx + 1])
+                if isinstance(obj, dict):
+                    return obj
+            except Exception:
+                pass
+    return None
+
+
 @router.post("/inspect-content", response_model=InspectContentResponse)
 def inspect_content(
     payload: InspectContentSchema,
@@ -263,13 +312,13 @@ def inspect_content(
 ):
     """
     Analyzes suspicious email text, SMS messages, or HTML script payloads for phishing markers.
-    Utilizes xAI Grok API with structured JSON response parser and heuristic fallback.
+    Utilizes xAI Grok / Groq API with structured JSON response parser and heuristic fallback.
     """
     raw_content = payload.content.strip()
     if not raw_content:
         raise HTTPException(status_code=400, detail="Content cannot be empty")
 
-    # 1. Attempt Grok API Inspection with strictly enforced JSON schema
+    # 1. Attempt Grok / Groq API Inspection with strictly enforced JSON schema
     if GROK_API_KEY:
         system_prompt = (
             "You are a Principal Cyber Threat Analyst. Inspect the provided content for phishing, credential theft, and social engineering.\n"
@@ -285,14 +334,8 @@ def inspect_content(
         grok_out = _call_grok_llm([{"role": "user", "content": user_msg}], system_prompt)
         
         if grok_out:
-            try:
-                # Robust JSON regex extraction
-                clean_json_str = grok_out.strip()
-                json_match = re.search(r'\{.*\}', clean_json_str, re.DOTALL)
-                if json_match:
-                    clean_json_str = json_match.group(0)
-
-                parsed = json.loads(clean_json_str)
+            parsed = _extract_first_json(grok_out)
+            if parsed:
                 risk_lvl = parsed.get("risk_level", "Suspicious")
                 if risk_lvl not in ["Safe", "Suspicious", "Phishing / Malicious"]:
                     risk_lvl = "Phishing / Malicious" if "phish" in str(risk_lvl).lower() or "mal" in str(risk_lvl).lower() else "Suspicious"
@@ -303,12 +346,10 @@ def inspect_content(
 
                 return InspectContentResponse(
                     risk_level=risk_lvl,
-                    analysis=parsed.get("analysis", "Grok evaluation completed."),
-                    indicators=indicators_list if indicators_list else ["Evaluated by Grok LLM Engine"],
+                    analysis=parsed.get("analysis", "AI threat evaluation completed."),
+                    indicators=indicators_list if indicators_list else ["Evaluated by AI LLM Engine"],
                     recommendation=parsed.get("recommendation", "Exercise caution when interacting with unverified content.")
                 )
-            except Exception as parse_err:
-                logger.warning("Grok JSON parsing fallback: %s", parse_err)
 
     # 2. Heuristic Rule-Based Content Analyzer (Accurate Fallback)
     content_lower = raw_content.lower()
