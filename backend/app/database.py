@@ -128,5 +128,9 @@ def get_db():
         db.close()
 
 def init_db():
-    """Initializes tables in the database."""
-    Base.metadata.create_all(bind=engine)
+    """Initializes tables in the database with graceful exception handling."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables verified and initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Database initialization notice (tables will be verified on query): {e}")

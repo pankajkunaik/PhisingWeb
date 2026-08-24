@@ -38,7 +38,22 @@ GROK_MODEL: str = os.getenv("GROK_MODEL", "grok-2-latest")
 APP_ENV: str = os.getenv("APP_ENV", "development")
 IS_PRODUCTION: bool = APP_ENV == "production"
 
-# ── ML model paths (resolved to absolute at startup) ─────────────────────────
-_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-ML_MODEL_JSON: str = os.path.join(_root, "ml", "models", "phishguard_model.json")
-ML_MODEL_PKL: str = os.path.join(_root, "ml", "models", "phishguard_model.pkl")
+# ── ML model paths (dynamically resolved across local & container paths) ──────────
+def _find_model_path(filename: str) -> str:
+    possible_dirs = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../ml/models")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../ml/models")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../models")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models")),
+        "/app/ml/models",
+        "/app/app/models",
+        "/app/models",
+    ]
+    for d in possible_dirs:
+        candidate = os.path.join(d, filename)
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.join(possible_dirs[0], filename)
+
+ML_MODEL_JSON: str = _find_model_path("phishguard_model.json")
+ML_MODEL_PKL: str = _find_model_path("phishguard_model.pkl")
