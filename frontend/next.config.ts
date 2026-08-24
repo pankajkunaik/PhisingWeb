@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  // Required for Docker multi-stage production builds
-  output: "standalone",
+  // Use standalone mode only when explicitly requested (e.g., Docker)
+  ...(process.env.BUILD_STANDALONE === "true" ? { output: "standalone" } : {}),
 
   // Allow cross-origin images from backend if needed
   images: {
