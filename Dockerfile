@@ -17,9 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-# Copy application and ML pipeline artifacts
-COPY backend/app ./app
-COPY ml ./ml
+# Copy full application code and models
+COPY . /app
 
 # Create a non-root user
 RUN useradd -m appuser && chown -R appuser /app
@@ -29,4 +28,4 @@ USER appuser
 EXPOSE 8000
 
 # Start the application with dynamic port support (Railway / Render / Cloud Run / Local)
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
